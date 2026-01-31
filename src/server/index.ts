@@ -13,6 +13,7 @@ import { gamesRouter } from './routes/games';
 import { matchesRouter } from './routes/matches';
 import { agentsRouter } from './routes/agents';
 import { leaderboardRouter } from './routes/leaderboard';
+import { arenaRouter } from './routes/arena';
 
 const app = new Hono();
 
@@ -38,6 +39,7 @@ app.route('/api/games', gamesRouter);
 app.route('/api/matches', matchesRouter);
 app.route('/api/agents', agentsRouter);
 app.route('/api/leaderboard', leaderboardRouter);
+app.route('/api/arena', arenaRouter);
 
 // 404 handler
 app.notFound((c) => {

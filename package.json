@@ -19,6 +19,9 @@
     "tsx": "^4.15.0",
     "typescript": "^5.5.0"
   },
+  "installConfig": {
+    "includeDevDependencies": true
+  },
   "engines": {
     "node": ">=20"
   }
