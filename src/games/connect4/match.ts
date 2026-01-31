@@ -1,193 +1,189 @@
 /**
- * Match Runner for Connect Four
- * 
- * Runs a match between two agents with timeout enforcement.
+ * Match Engine
+ * Orchestrates a complete game between two agents
  */
 
-import { GameState, createGame, makeMove, renderBoard, Column } from './game';
-import { Agent } from './agent';
-
-export interface MatchConfig {
-  /** Maximum time per move in milliseconds */
-  moveTimeoutMs: number;
-  /** Maximum total game time in milliseconds */
-  gameTimeoutMs: number;
-  /** Log moves to console */
-  verbose: boolean;
-}
+import { createGame, makeMove, renderBoard, GameState, Column } from './game';
+import { AgentFunction, AGENTS } from './agent';
 
 export interface MatchResult {
-  /** Winner: 1, 2, or null for draw */
   winner: 1 | 2 | null;
-  /** Reason for game end */
-  reason: 'win' | 'draw' | 'timeout' | 'invalid_move' | 'error';
-  /** Which player caused the issue (for timeout/invalid/error) */
-  faultPlayer?: 1 | 2;
-  /** Number of turns played */
   turns: number;
-  /** Full game history */
-  moves: Column[];
-  /** Final game state */
-  finalState: GameState;
-  /** Timing data */
-  timings: { player: 1 | 2; moveMs: number }[];
+  moves: { player: 1 | 2; column: Column }[];
+  finalBoard: string;
+  player1Rating?: number;
+  player2Rating?: number;
 }
 
-const DEFAULT_CONFIG: MatchConfig = {
-  moveTimeoutMs: 5000,
-  gameTimeoutMs: 300000,
-  verbose: false
-};
-
 /**
- * Run a match between two agents
+ * Run a match between two agent functions
  */
-export async function runMatch(
-  agent1: Agent,
-  agent2: Agent,
-  config: Partial<MatchConfig> = {}
-): Promise<MatchResult> {
-  const cfg = { ...DEFAULT_CONFIG, ...config };
-  const agents: [Agent, Agent] = [agent1, agent2];
-  
-  // Initialize agents
-  await agent1.init?.(1);
-  await agent2.init?.(2);
-  
+export function runMatch(
+  agent1: AgentFunction,
+  agent2: AgentFunction,
+  maxTurns: number = 100,
+  verbose: boolean = false
+): MatchResult {
   let state = createGame();
-  const moves: Column[] = [];
-  const timings: { player: 1 | 2; moveMs: number }[] = [];
-  const gameStart = Date.now();
+  const moves: { player: 1 | 2; column: Column }[] = [];
   
-  if (cfg.verbose) {
-    console.log(`Match: ${agent1.name} vs ${agent2.name}`);
+  if (verbose) {
+    console.log('\n🎮 Match Started\n');
     console.log(renderBoard(state.board));
   }
   
-  while (!state.isGameOver) {
-    // Check total game timeout
-    if (Date.now() - gameStart > cfg.gameTimeoutMs) {
+  while (!state.isGameOver && state.turn < maxTurns) {
+    const currentAgent = state.currentPlayer === 1 ? agent1 : agent2;
+    
+    // Get agent's move
+    const startTime = Date.now();
+    const column = currentAgent(state);
+    const thinkTime = Date.now() - startTime;
+    
+    // Validate and apply move
+    const result = makeMove(state, column);
+    
+    if (!result.success) {
+      // Invalid move = forfeit
+      console.error(`Agent ${state.currentPlayer} made invalid move: ${result.error}`);
       return {
         winner: state.currentPlayer === 1 ? 2 : 1,
-        reason: 'timeout',
-        faultPlayer: state.currentPlayer,
         turns: state.turn,
         moves,
-        finalState: state,
-        timings
+        finalBoard: renderBoard(state.board)
       };
     }
     
-    const currentAgent = agents[state.currentPlayer - 1];
-    const moveStart = Date.now();
+    moves.push({ player: state.currentPlayer, column });
+    state = result.state;
     
-    try {
-      // Get move with timeout
-      const movePromise = currentAgent.act({ ...state });
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('timeout')), cfg.moveTimeoutMs)
-      );
-      
-      const column = await Promise.race([movePromise, timeoutPromise]);
-      const moveMs = Date.now() - moveStart;
-      
-      timings.push({ player: state.currentPlayer, moveMs });
-      
-      if (cfg.verbose) {
-        console.log(`Player ${state.currentPlayer} (${currentAgent.name}) plays column ${column} (${moveMs}ms)`);
-      }
-      
-      // Make the move
-      const result = makeMove(state, column);
-      
-      if (!result.success) {
-        return {
-          winner: state.currentPlayer === 1 ? 2 : 1,
-          reason: 'invalid_move',
-          faultPlayer: state.currentPlayer,
-          turns: state.turn,
-          moves,
-          finalState: state,
-          timings
-        };
-      }
-      
-      moves.push(column);
-      state = result.state;
-      
-      if (cfg.verbose) {
-        console.log(renderBoard(state.board));
-      }
-      
-    } catch (err) {
-      const isTimeout = err instanceof Error && err.message === 'timeout';
-      return {
-        winner: state.currentPlayer === 1 ? 2 : 1,
-        reason: isTimeout ? 'timeout' : 'error',
-        faultPlayer: state.currentPlayer,
-        turns: state.turn,
-        moves,
-        finalState: state,
-        timings
-      };
+    if (verbose) {
+      console.log(`Player ${moves[moves.length - 1].player} plays column ${column} (${thinkTime}ms)`);
+      console.log(renderBoard(state.board));
     }
   }
   
-  // Notify agents of result
-  const won1 = state.winner === 1;
-  const won2 = state.winner === 2;
-  await agent1.onGameOver?.(state, won1);
-  await agent2.onGameOver?.(state, won2);
+  if (verbose) {
+    console.log('\n🏁 Match Complete');
+    if (state.winner) {
+      console.log(`🏆 Winner: Player ${state.winner}`);
+    } else if (state.isDraw) {
+      console.log('🤝 Draw!');
+    } else {
+      console.log('⏱️ Max turns reached');
+    }
+  }
   
   return {
     winner: state.winner,
-    reason: state.winner ? 'win' : 'draw',
     turns: state.turn,
     moves,
-    finalState: state,
-    timings
+    finalBoard: renderBoard(state.board)
   };
 }
 
 /**
- * Run multiple matches and return aggregate stats
+ * Run a tournament between multiple agents
  */
-export async function runSeries(
-  agent1: Agent,
-  agent2: Agent,
-  numMatches: number,
-  config: Partial<MatchConfig> = {}
-): Promise<{
-  agent1Wins: number;
-  agent2Wins: number;
-  draws: number;
-  results: MatchResult[];
-}> {
-  const results: MatchResult[] = [];
-  let agent1Wins = 0;
-  let agent2Wins = 0;
-  let draws = 0;
+export function runTournament(
+  agents: { name: string; fn: AgentFunction }[],
+  gamesPerPair: number = 10
+): { name: string; wins: number; losses: number; draws: number; points: number }[] {
+  const results: Map<string, { wins: number; losses: number; draws: number }> = new Map();
   
-  for (let i = 0; i < numMatches; i++) {
-    // Alternate who goes first
-    const result = i % 2 === 0
-      ? await runMatch(agent1, agent2, config)
-      : await runMatch(agent2, agent1, config);
-    
-    results.push(result);
-    
-    if (i % 2 === 0) {
-      // agent1 was player 1
-      if (result.winner === 1) agent1Wins++;
-      else if (result.winner === 2) agent2Wins++;
-      else draws++;
-    } else {
-      // agent2 was player 1
-      if (result.winner === 1) agent2Wins++;
-      else if (result.winner === 2) agent1Wins++;
-      else draws++;
+  // Initialize results
+  for (const agent of agents) {
+    results.set(agent.name, { wins: 0, losses: 0, draws: 0 });
+  }
+  
+  console.log(`\n🏆 Tournament: ${agents.length} agents, ${gamesPerPair} games per pair\n`);
+  console.log('═'.repeat(50));
+  
+  // Play each pair
+  for (let i = 0; i < agents.length; i++) {
+    for (let j = i + 1; j < agents.length; j++) {
+      const agent1 = agents[i];
+      const agent2 = agents[j];
+      
+      let a1Wins = 0, a2Wins = 0, draws = 0;
+      
+      // Play games (alternating who goes first)
+      for (let g = 0; g < gamesPerPair; g++) {
+        const goesFirst = g % 2 === 0;
+        const result = runMatch(
+          goesFirst ? agent1.fn : agent2.fn,
+          goesFirst ? agent2.fn : agent1.fn,
+          100,
+          false
+        );
+        
+        if (result.winner === null) {
+          draws++;
+        } else if ((goesFirst && result.winner === 1) || (!goesFirst && result.winner === 2)) {
+          a1Wins++;
+        } else {
+          a2Wins++;
+        }
+      }
+      
+      console.log(`${agent1.name} vs ${agent2.name}: ${a1Wins}-${a2Wins}-${draws}`);
+      
+      // Update results
+      const r1 = results.get(agent1.name)!;
+      const r2 = results.get(agent2.name)!;
+      
+      r1.wins += a1Wins;
+      r1.losses += a2Wins;
+      r1.draws += draws;
+      
+      r2.wins += a2Wins;
+      r2.losses += a1Wins;
+      r2.draws += draws;
     }
   }
   
-  return { agent1Wins, agent2Wins, draws, results };
+  // Calculate points and sort
+  const standings = Array.from(results.entries())
+    .map(([name, r]) => ({
+      name,
+      ...r,
+      points: r.wins * 3 + r.draws * 1
+    }))
+    .sort((a, b) => b.points - a.points);
+  
+  console.log('\n' + '═'.repeat(50));
+  console.log('\n📊 Final Standings:\n');
+  
+  standings.forEach((s, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    console.log(`${medal} ${i + 1}. ${s.name.padEnd(15)} ${s.points} pts (${s.wins}W/${s.losses}L/${s.draws}D)`);
+  });
+  
+  return standings;
+}
+
+// CLI Test
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('\n🎮 MAGOS Match Engine Test\n');
+  console.log('═'.repeat(50));
+  
+  // Single match demo
+  console.log('\n📍 Demo Match: Minimax vs Blocking\n');
+  const result = runMatch(AGENTS.minimax, AGENTS.blocking, 100, true);
+  
+  console.log('\n📊 Match Statistics:');
+  console.log(`   Turns: ${result.turns}`);
+  console.log(`   Winner: ${result.winner ? `Player ${result.winner}` : 'Draw'}`);
+  
+  // Mini tournament
+  console.log('\n');
+  runTournament([
+    { name: 'Random', fn: AGENTS.random },
+    { name: 'Center', fn: AGENTS.center },
+    { name: 'Blocking', fn: AGENTS.blocking },
+    { name: 'Minimax', fn: AGENTS.minimax },
+  ], 5);
+  
+  console.log('\n✅ Match engine operational');
+  console.log('The truth is in the gradients. 🧠\n');
 }

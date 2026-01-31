@@ -1,151 +1,325 @@
 /**
- * Agent Interface for Connect Four
- * 
- * This defines the interface that all agents must implement.
+ * Sample Agent Implementation
+ * Demonstrates how to build an agent that plays on MAGOS
  */
 
 import { GameState, Column } from './game';
 
 /**
- * Agent interface - all competing agents must implement this
+ * Random Agent - Just picks a random valid move
+ * This is the baseline. If you can't beat this, you have problems.
  */
-export interface Agent {
-  /**
-   * Agent name/identifier
-   */
-  name: string;
-
-  /**
-   * Called once at the start of a match
-   * Can be used for initialization
-   */
-  init?(playerNumber: 1 | 2): Promise<void>;
-
-  /**
-   * Called each turn to get the agent's move
-   * Must return a valid column number
-   * 
-   * @param state Current game state (includes validActions)
-   * @returns Column to drop piece in
-   */
-  act(state: GameState): Promise<Column>;
-
-  /**
-   * Called when the match ends (optional)
-   * Can be used for learning/logging
-   */
-  onGameOver?(state: GameState, won: boolean): Promise<void>;
+export function randomAgent(state: GameState): Column {
+  const validActions = state.validActions;
+  const randomIndex = Math.floor(Math.random() * validActions.length);
+  return validActions[randomIndex];
 }
 
 /**
- * Example: Random Agent
- * Just picks a random valid column
+ * Center Agent - Prefers center columns
+ * Slightly better than random. Center control matters in Connect Four.
  */
-export const RandomAgent: Agent = {
-  name: 'RandomBot',
+export function centerAgent(state: GameState): Column {
+  const validActions = state.validActions;
   
-  async act(state: GameState): Promise<Column> {
-    const { validActions } = state;
-    const randomIndex = Math.floor(Math.random() * validActions.length);
-    return validActions[randomIndex];
+  // Preference order: center first, then spread out
+  const preference = [3, 2, 4, 1, 5, 0, 6];
+  
+  for (const col of preference) {
+    if (validActions.includes(col as Column)) {
+      return col as Column;
+    }
   }
-};
+  
+  return validActions[0];
+}
 
 /**
- * Example: Center-Preference Agent
- * Prefers center columns (better strategy)
+ * Blocking Agent - Tries to block opponent's winning moves
+ * Actually uses some basic strategy
  */
-export const CenterAgent: Agent = {
-  name: 'CenterBot',
+export function blockingAgent(state: GameState): Column {
+  const { board, currentPlayer, validActions } = state;
+  const opponent = currentPlayer === 1 ? 2 : 1;
   
-  async act(state: GameState): Promise<Column> {
-    const { validActions } = state;
-    
-    // Prefer center columns
-    const centerPriority = [3, 2, 4, 1, 5, 0, 6] as Column[];
-    
-    for (const col of centerPriority) {
-      if (validActions.includes(col)) {
-        return col;
-      }
+  // Check if we can win this turn
+  for (const col of validActions) {
+    if (wouldWin(board, col, currentPlayer)) {
+      return col;
     }
-    
-    // Fallback (should never happen)
-    return validActions[0];
   }
-};
+  
+  // Check if opponent would win next turn - block them
+  for (const col of validActions) {
+    if (wouldWin(board, col, opponent)) {
+      return col;
+    }
+  }
+  
+  // Otherwise, prefer center
+  return centerAgent(state);
+}
 
 /**
- * Example: Blocking Agent
- * Tries to block opponent's winning moves and make its own
+ * Check if playing in a column would result in 4-in-a-row
  */
-export const BlockingAgent: Agent = {
-  name: 'BlockingBot',
-  
-  async act(state: GameState): Promise<Column> {
-    const { board, validActions, currentPlayer } = state;
-    const opponent = currentPlayer === 1 ? 2 : 1;
-    
-    // Helper: simulate a move and check for winner
-    const checkWinningMove = (col: Column, player: 1 | 2): boolean => {
-      // Find row where piece would land
-      let row = 5;
-      while (row >= 0 && board[row][col] !== 0) row--;
-      if (row < 0) return false;
-      
-      // Temporarily place piece
-      const tempBoard = board.map(r => [...r]);
-      tempBoard[row][col] = player;
-      
-      // Check for 4 in a row (simplified check around the placed piece)
-      const directions = [
-        [[0, 1], [0, -1]],   // horizontal
-        [[1, 0], [-1, 0]],   // vertical
-        [[1, 1], [-1, -1]], // diagonal
-        [[1, -1], [-1, 1]]  // anti-diagonal
-      ];
-      
-      for (const [dir1, dir2] of directions) {
-        let count = 1;
-        
-        for (const [dr, dc] of [dir1, dir2]) {
-          let r = row + dr;
-          let c = col + dc;
-          while (r >= 0 && r < 6 && c >= 0 && c < 7 && tempBoard[r][c] === player) {
-            count++;
-            r += dr;
-            c += dc;
-          }
-        }
-        
-        if (count >= 4) return true;
-      }
-      
-      return false;
-    };
-    
-    // 1. Check for winning move
-    for (const col of validActions) {
-      if (checkWinningMove(col, currentPlayer)) {
-        return col;
-      }
-    }
-    
-    // 2. Block opponent's winning move
-    for (const col of validActions) {
-      if (checkWinningMove(col, opponent)) {
-        return col;
-      }
-    }
-    
-    // 3. Prefer center
-    const centerPriority = [3, 2, 4, 1, 5, 0, 6] as Column[];
-    for (const col of centerPriority) {
-      if (validActions.includes(col)) {
-        return col;
-      }
-    }
-    
-    return validActions[0];
+function wouldWin(board: number[][], col: number, player: number): boolean {
+  // Find the row where the piece would land
+  let row = 5;
+  while (row >= 0 && board[row][col] !== 0) {
+    row--;
   }
+  
+  if (row < 0) return false; // Column full
+  
+  // Temporarily place the piece
+  const testBoard = board.map(r => [...r]);
+  testBoard[row][col] = player;
+  
+  // Check all directions for 4-in-a-row
+  return checkFour(testBoard, row, col, player);
+}
+
+function checkFour(board: number[][], row: number, col: number, player: number): boolean {
+  const directions = [
+    [0, 1],   // horizontal
+    [1, 0],   // vertical
+    [1, 1],   // diagonal down-right
+    [1, -1],  // diagonal down-left
+  ];
+  
+  for (const [dr, dc] of directions) {
+    let count = 1;
+    
+    // Count in positive direction
+    for (let i = 1; i < 4; i++) {
+      const r = row + dr * i;
+      const c = col + dc * i;
+      if (r >= 0 && r < 6 && c >= 0 && c < 7 && board[r][c] === player) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    
+    // Count in negative direction
+    for (let i = 1; i < 4; i++) {
+      const r = row - dr * i;
+      const c = col - dc * i;
+      if (r >= 0 && r < 6 && c >= 0 && c < 7 && board[r][c] === player) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    
+    if (count >= 4) return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Minimax Agent - Uses minimax with alpha-beta pruning
+ * This is what a "real" agent looks like. Depth-limited search.
+ */
+export function minimaxAgent(state: GameState, depth: number = 5): Column {
+  const { board, currentPlayer, validActions } = state;
+  
+  let bestScore = -Infinity;
+  let bestMove = validActions[0];
+  
+  for (const col of validActions) {
+    const score = minimax(
+      simulateMove(board, col, currentPlayer),
+      depth - 1,
+      -Infinity,
+      Infinity,
+      false,
+      currentPlayer
+    );
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = col;
+    }
+  }
+  
+  return bestMove;
+}
+
+function minimax(
+  board: number[][],
+  depth: number,
+  alpha: number,
+  beta: number,
+  isMaximizing: boolean,
+  originalPlayer: number
+): number {
+  // Terminal checks
+  const winner = getWinner(board);
+  if (winner === originalPlayer) return 1000 + depth;
+  if (winner === (originalPlayer === 1 ? 2 : 1)) return -1000 - depth;
+  if (isFull(board)) return 0;
+  if (depth === 0) return evaluateBoard(board, originalPlayer);
+  
+  const currentPlayer = isMaximizing ? originalPlayer : (originalPlayer === 1 ? 2 : 1);
+  const validCols = getValidColumns(board);
+  
+  if (isMaximizing) {
+    let maxEval = -Infinity;
+    for (const col of validCols) {
+      const newBoard = simulateMove(board, col, currentPlayer);
+      const eval_ = minimax(newBoard, depth - 1, alpha, beta, false, originalPlayer);
+      maxEval = Math.max(maxEval, eval_);
+      alpha = Math.max(alpha, eval_);
+      if (beta <= alpha) break;
+    }
+    return maxEval;
+  } else {
+    let minEval = Infinity;
+    for (const col of validCols) {
+      const newBoard = simulateMove(board, col, currentPlayer);
+      const eval_ = minimax(newBoard, depth - 1, alpha, beta, true, originalPlayer);
+      minEval = Math.min(minEval, eval_);
+      beta = Math.min(beta, eval_);
+      if (beta <= alpha) break;
+    }
+    return minEval;
+  }
+}
+
+function simulateMove(board: number[][], col: number, player: number): number[][] {
+  const newBoard = board.map(r => [...r]);
+  for (let row = 5; row >= 0; row--) {
+    if (newBoard[row][col] === 0) {
+      newBoard[row][col] = player;
+      break;
+    }
+  }
+  return newBoard;
+}
+
+function getValidColumns(board: number[][]): number[] {
+  const valid = [];
+  for (let col = 0; col < 7; col++) {
+    if (board[0][col] === 0) valid.push(col);
+  }
+  return valid;
+}
+
+function getWinner(board: number[][]): number | null {
+  // Check horizontal, vertical, diagonal
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 7; col++) {
+      const player = board[row][col];
+      if (player === 0) continue;
+      
+      // Horizontal
+      if (col <= 3 &&
+          player === board[row][col+1] &&
+          player === board[row][col+2] &&
+          player === board[row][col+3]) {
+        return player;
+      }
+      
+      // Vertical
+      if (row <= 2 &&
+          player === board[row+1][col] &&
+          player === board[row+2][col] &&
+          player === board[row+3][col]) {
+        return player;
+      }
+      
+      // Diagonal down-right
+      if (row <= 2 && col <= 3 &&
+          player === board[row+1][col+1] &&
+          player === board[row+2][col+2] &&
+          player === board[row+3][col+3]) {
+        return player;
+      }
+      
+      // Diagonal down-left
+      if (row <= 2 && col >= 3 &&
+          player === board[row+1][col-1] &&
+          player === board[row+2][col-2] &&
+          player === board[row+3][col-3]) {
+        return player;
+      }
+    }
+  }
+  return null;
+}
+
+function isFull(board: number[][]): boolean {
+  return board[0].every(cell => cell !== 0);
+}
+
+function evaluateBoard(board: number[][], player: number): number {
+  let score = 0;
+  const opponent = player === 1 ? 2 : 1;
+  
+  // Center column preference
+  for (let row = 0; row < 6; row++) {
+    if (board[row][3] === player) score += 3;
+    if (board[row][3] === opponent) score -= 3;
+  }
+  
+  // Evaluate all windows of 4
+  // Horizontal
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col <= 3; col++) {
+      const window = [board[row][col], board[row][col+1], board[row][col+2], board[row][col+3]];
+      score += evaluateWindow(window, player);
+    }
+  }
+  
+  // Vertical
+  for (let row = 0; row <= 2; row++) {
+    for (let col = 0; col < 7; col++) {
+      const window = [board[row][col], board[row+1][col], board[row+2][col], board[row+3][col]];
+      score += evaluateWindow(window, player);
+    }
+  }
+  
+  // Diagonal
+  for (let row = 0; row <= 2; row++) {
+    for (let col = 0; col <= 3; col++) {
+      const window = [board[row][col], board[row+1][col+1], board[row+2][col+2], board[row+3][col+3]];
+      score += evaluateWindow(window, player);
+    }
+  }
+  
+  for (let row = 0; row <= 2; row++) {
+    for (let col = 3; col < 7; col++) {
+      const window = [board[row][col], board[row+1][col-1], board[row+2][col-2], board[row+3][col-3]];
+      score += evaluateWindow(window, player);
+    }
+  }
+  
+  return score;
+}
+
+function evaluateWindow(window: number[], player: number): number {
+  const opponent = player === 1 ? 2 : 1;
+  const playerCount = window.filter(c => c === player).length;
+  const opponentCount = window.filter(c => c === opponent).length;
+  const emptyCount = window.filter(c => c === 0).length;
+  
+  if (playerCount === 4) return 100;
+  if (playerCount === 3 && emptyCount === 1) return 5;
+  if (playerCount === 2 && emptyCount === 2) return 2;
+  if (opponentCount === 3 && emptyCount === 1) return -4;
+  
+  return 0;
+}
+
+// Export agent types for documentation
+export type AgentFunction = (state: GameState) => Column;
+
+export const AGENTS = {
+  random: randomAgent,
+  center: centerAgent,
+  blocking: blockingAgent,
+  minimax: minimaxAgent,
 };

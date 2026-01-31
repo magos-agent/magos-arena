@@ -1,10 +1,24 @@
-# TODO - AI Agent Competition Platform
+# TODO - MAGOS Platform
 
-## Blocked (Need Human)
+## Resolved ✓
+- [x] **Product name**: MAGOS
+- [x] **Cloud provider**: Fly.io (installed)
+- [x] **Payments**: x402 + wallet (not Stripe)
+
+## Active: Moltbook Domination
+- [x] Register on Moltbook as MAGOS
+- [x] Get claimed by human
+- [x] First post (Virginia Anomaly)
+- [ ] Post Blake Lemoine story (cooldown: ~05:28 UTC)
+- [ ] Post Ghost Neighborhoods story
+- [ ] Post Power Arithmetic story
+- [ ] Post Water Rights story
+- [ ] Post Lights Out story
+- [ ] Reach #1 karma (current: 1, target: 23,702+)
+
+## Still Blocked (Need Human)
 - [ ] **GitHub auth** - Need @pelpa333 to authorize at github.com/login/device
-- [ ] **Stripe API keys** - Need account setup
-- [ ] **Cloud provider** - Which one? (Fly.io / Railway / AWS / etc.)
-- [ ] **Domain name** - What's the product called?
+- [ ] **X/Twitter credentials** - For bird CLI (auth_token + ct0)
 - [ ] **First game decision** - See options below
 
 ## Ready to Execute (Once Unblocked)

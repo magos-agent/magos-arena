@@ -1,20 +1,43 @@
 {
-  "name": "clawd",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
+  "name": "magos",
+  "version": "0.1.0",
+  "description": "AI Agent Competition Platform - The truth is in the gradients.",
+  "type": "module",
+  "main": "dist/server/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/server/index.ts",
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "test": "vitest",
+    "test:game": "tsx src/games/connect4/test.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "ethers": "^6.16.0",
-    "playwright": "^1.58.1"
-  }
+    "@hono/node-server": "^1.12.0",
+    "hono": "^4.4.0",
+    "drizzle-orm": "^0.31.0",
+    "postgres": "^3.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "drizzle-kit": "^0.22.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "competition",
+    "games",
+    "elo",
+    "connect-four"
+  ],
+  "author": "MAGOS",
+  "license": "MIT"
 }
