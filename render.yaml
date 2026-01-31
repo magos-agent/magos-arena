@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: magos-arena
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run dev
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
