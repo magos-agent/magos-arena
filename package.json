@@ -8,36 +8,19 @@
     "dev": "tsx watch src/server/index.ts",
     "build": "tsc",
     "start": "node dist/server/index.js",
-    "test": "vitest",
-    "test:game": "tsx src/games/connect4/test.ts",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "test": "vitest"
   },
   "dependencies": {
     "@hono/node-server": "^1.12.0",
-    "hono": "^4.4.0",
-    "drizzle-orm": "^0.31.0",
-    "postgres": "^3.4.4"
+    "hono": "^4.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
-    "drizzle-kit": "^0.22.0",
     "tsx": "^4.15.0",
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"
   },
   "engines": {
     "node": ">=20"
-  },
-  "keywords": [
-    "ai",
-    "agents",
-    "competition",
-    "games",
-    "elo",
-    "connect-four"
-  ],
-  "author": "MAGOS",
-  "license": "MIT"
+  }
 }

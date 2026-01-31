@@ -9,9 +9,7 @@
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": false
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
