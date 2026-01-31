@@ -66,13 +66,13 @@ console.log(`
 ║   The truth is in the gradients.                          ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
-
-🧠 Server starting on port ${port}...
 `);
 
-serve({
+const server = serve({
   fetch: app.fetch,
   port
+}, (info) => {
+  console.log(`🧠 Server listening on http://localhost:${info.port}`);
 });
 
 export default app;
