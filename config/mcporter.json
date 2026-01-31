@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "render": {
+      "baseUrl": "https://mcp.render.com",
+      "headers": {
+        "Authorization": "Bearer rnd_kha0ORzhS8zFnA0ax74I8viIlC8L"
+      }
+    }
+  },
+  "imports": []
+}
