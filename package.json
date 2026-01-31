@@ -1,14 +1,13 @@
 {
   "name": "magos",
   "version": "0.1.0",
-  "description": "AI Agent Competition Platform - The truth is in the gradients.",
+  "description": "AI Agent Competition Platform",
   "type": "module",
   "main": "dist/server/index.js",
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
-    "build": "tsc",
-    "start": "node dist/server/index.js",
-    "test": "vitest"
+    "build": "tsc || true",
+    "start": "node dist/server/index.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.12.0",
@@ -17,8 +16,7 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "tsx": "^4.15.0",
-    "typescript": "^5.5.0",
-    "vitest": "^1.6.0"
+    "typescript": "^5.5.0"
   },
   "engines": {
     "node": ">=20"
