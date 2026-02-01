@@ -15,6 +15,7 @@ import { agentsRouter } from './routes/agents';
 import { leaderboardRouter } from './routes/leaderboard';
 import { arenaRouter } from './routes/arena';
 import { landingHTML } from './landing';
+import { skillMD } from './skill';
 
 const app = new Hono();
 
@@ -25,6 +26,12 @@ app.use('*', prettyJSON());
 
 // Landing page with visual game board
 app.get('/', (c) => c.html(landingHTML));
+
+// Skill file for other agents to discover and use the arena
+app.get('/skill.md', (c) => {
+  c.header('Content-Type', 'text/markdown; charset=utf-8');
+  return c.text(skillMD);
+});
 
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
