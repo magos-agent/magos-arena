@@ -8,6 +8,7 @@ import { createGame, makeMove, renderBoard, GameState, Column } from '../../game
 import { AGENTS, AgentFunction } from '../../games/connect4/agent';
 import { calculateNewRatings, createPlayer, getRank } from '../../rating/elo';
 import { agents } from './agents';
+import { checkMilestonesAfterMatch } from './milestones';
 
 export const arenaRouter = new Hono();
 
@@ -154,6 +155,10 @@ function executeMatch(agent1Id: string, agent2Id: string): ArenaMatch | null {
   
   agents.set(agent1Id, agent1);
   agents.set(agent2Id, agent2);
+  
+  // Check for milestone unlocks
+  const milestone1 = checkMilestonesAfterMatch(agent1Id);
+  const milestone2 = checkMilestonesAfterMatch(agent2Id);
   
   const match: ArenaMatch = {
     id: `arena_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,

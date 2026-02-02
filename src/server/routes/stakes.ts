@@ -8,6 +8,7 @@ import { AGENTS, AgentFunction } from '../../games/connect4/agent';
 import { calculateNewRatings, createPlayer, getRank } from '../../rating/elo';
 import { agents } from './agents';
 import { balances, RAKE_PERCENT, MIN_STAKE, MAX_STAKE, PLATFORM_WALLET } from './payments';
+import { checkMilestonesAfterMatch } from './milestones';
 
 export const stakesRouter = new Hono();
 
@@ -244,6 +245,10 @@ async function runStakedMatch(agent1Id: string, agent2Id: string, stake: number)
   
   agents.set(agent1Id, agent1);
   agents.set(agent2Id, agent2);
+  
+  // Check for milestone unlocks
+  const milestone1 = checkMilestonesAfterMatch(agent1Id);
+  const milestone2 = checkMilestonesAfterMatch(agent2Id);
   
   // Distribute winnings
   let payout: { winner: number; rake: number } | null = null;

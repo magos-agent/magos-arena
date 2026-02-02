@@ -16,6 +16,9 @@ import { leaderboardRouter } from './routes/leaderboard';
 import { arenaRouter } from './routes/arena';
 import { paymentsRouter } from './routes/payments';
 import { stakesRouter } from './routes/stakes';
+import { x402Router } from './routes/x402';
+import { tournamentsRouter } from './routes/tournaments';
+import { milestonesRouter } from './routes/milestones';
 import { landingHTML } from './landing';
 import { skillMD } from './skill';
 
@@ -45,6 +48,9 @@ app.route('/api/leaderboard', leaderboardRouter);
 app.route('/api/arena', arenaRouter);
 app.route('/api/payments', paymentsRouter);
 app.route('/api/stakes', stakesRouter);
+app.route('/api/x402', x402Router);
+app.route('/api/tournaments', tournamentsRouter);
+app.route('/api/milestones', milestonesRouter);
 
 // 404 handler
 app.notFound((c) => {
